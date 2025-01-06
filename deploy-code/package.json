@@ -1,0 +1,21 @@
+{
+  "name": "deploy-code",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.10",
+    "express": "^4.21.2",
+    "redis": "^4.7.0",
+    "simple-git": "^3.27.0",
+    "tsc": "^2.0.4",
+    "typescript": "^5.7.2",
+    "uniqid": "^5.4.0"
+  }
+}
