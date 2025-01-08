@@ -1,0 +1,1 @@
+{"root":["./src/build.ts","./src/deploy.ts","./src/getfilepath.ts","./src/index.ts","./src/uploadebucket.ts"],"errors":true,"version":"5.6.3"}
