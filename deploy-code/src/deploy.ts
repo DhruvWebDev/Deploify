@@ -3,25 +3,67 @@ import Docker from 'dockerode';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import uniqid from 'uniqid';
 
-// Initialize Docker
+// Initialize Docker and Express
 const docker = new Docker();
-// Create Express app
 const app = express();
 app.use(cors());
-const port = 9000;
+const port = 3000;
 
 // Add JSON body parser
 app.use(express.json());
-const folderPath = path.join(__dirname, 'logs-file'); // Nested folders
-const filePath = path.join(folderPath, 'example.txt'); // File inside the nested folder
 
-// Create the folder if it doesn't exist
-if (!fs.existsSync(folderPath)) {
-  fs.mkdirSync(folderPath, { recursive: true }); // Create nested folders if not exist
-}
+// Store container mappings in memory
+const containerMappings = new Map();
 
-// Function to spin up a Docker container and build from GitHub
+// Subdomain handling middleware
+app.use(async (req, res, next) => {
+  const host = req.headers.host;
+  
+  // Skip if it's the main domain or API endpoints
+  if (host === `localhost:${port}` || req.path.startsWith('/deploy') || req.path.startsWith('/containers')) {
+    /**
+     * Middleware Function: Middleware functions are functions that have access to the request object (req), the response object (res), and the next middleware function in the application’s request-response cycle.
+     next() Function: The next function is a callback that you call to pass control to the next middleware function. If you don't call next(), the request will be left hanging.
+     */
+    return next();
+  }
+  
+  // Extract subdomain
+  const subdomain = host.split('.')[0];
+  const containerPort = containerMappings.get(subdomain);
+  
+  if (!containerPort) {
+    return res.status(404).json({ 
+      error: 'Container not found',
+      message: `No container found for ${subdomain}`
+    });
+  }
+
+  // Create and use proxy middleware
+  const proxy = createProxyMiddleware({
+    target: `http://localhost:${containerPort}`,
+    changeOrigin: true,
+    ws: true,
+    onProxyReq: (proxyReq, req) => {
+      // Add custom headers
+      proxyReq.setHeader('X-Forwarded-Host', req.headers.host);
+      proxyReq.setHeader('X-Container-ID', subdomain);
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error:', err);
+      res.status(502).json({
+        error: 'Bad Gateway',
+        message: 'Unable to connect to container'
+      });
+    }
+  });
+
+  return proxy(req, res, next);
+});
+
 async function spinUpContainer(githubUrl) {
   try {
     const imageName = 'node:20';
@@ -35,132 +77,87 @@ async function spinUpContainer(githubUrl) {
         await new Promise((resolve, reject) => {
           docker.pull(imageName, (err, stream) => {
             if (err) return reject(err);
-            
             docker.modem.followProgress(stream, (err, output) => {
               if (err) return reject(err);
               resolve(output);
             });
           });
         });
-        console.log('Image pulled successfully');
       } else {
         throw error;
       }
     }
 
-    // Create a script to clone and build the project
+    // Create build script
     const buildScript = `
-      # Install git
-      apt-get update && apt-get install -y git
-
-      # Clone the repository
-      git clone ${githubUrl} /app
-
-      # Go to app directory
-      cd /app
-
-      # Install dependencies
-      npm install
-
-      # Build the project
+      apt-get update && apt-get install -y git &&
+      git clone ${githubUrl} /app &&
+      cd /app &&
+      npm install &&
       npm run build
-
-      #Run the project
       npm run dev
     `;
 
-    // Create a Docker container with build process
+    // Generate unique subdomain ID
+    const subdomainId = uniqid();    
+    // Create container
     const container = await docker.createContainer({
       Image: imageName,
-      // Run the build script in a shell
       Cmd: ['/bin/bash', '-c', buildScript],
       ExposedPorts: {
         '8080/tcp': {}
       },
       HostConfig: {
         PortBindings: {
-          '8080/tcp': [
-            {
-              HostPort: '0' // Dynamically assign a port
-            }
-          ]
+          '8080/tcp': [{ HostPort: '0' }]
         },
-        AutoRemove: true, // Automatically remove the container when it stops
+        AutoRemove: true
       },
-      name: `node-app-${Date.now()}`, // Give each container a unique name
-      Tty: true, // Keep the terminal open
-      AttachStdout: true,
-      AttachStderr: true
+      name: `node-app-${subdomainId}`
     });
 
-    // Start the container
+    // Start container
     await container.start();
     
-    // Stream the build logs
-    const stream = await container.attach({
-      stream: true,
-      stdout: true,
-      stderr: true
-    });
-
-    // Return container info and stream for logging
+    // Get container info and port
     const containerInfo = await container.inspect();
     const hostPort = containerInfo.NetworkSettings.Ports['8080/tcp'][0].HostPort;
     
-    console.log(`Docker container started. Port ${hostPort} mapped to container port 8080`);
+    // Store mapping
+    containerMappings.set(subdomainId, hostPort);
     
-    // Stream the build logs to console and append them to the file
-    stream.on('data', (chunk) => {
-      const logData = chunk.toString();
-      fs.appendFileSync(filePath, logData + '\n', 'utf8'); // Add a newline after each chunk
-      console.log('Build log:', logData); // Log the chunk in the console for debugging
-    });
-
     return {
       id: container.id,
-      port: hostPort
+      port: hostPort,
+      subdomainId
     };
   } catch (error) {
-    console.error('Error starting Docker container:', error);
+    console.error('Error starting container:', error);
     throw error;
   }
 }
 
-// API route to trigger the deployment
+// Deploy endpoint
 app.post('/deploy', async (req, res) => {
   try {
     const { github_url: githubUrl } = req.body;
     
     if (!githubUrl) {
       return res.status(400).json({
-        error: 'Missing required parameter',
-        message: 'githubUrl is required in the request body'
+        error: 'Missing parameter',
+        message: 'github_url is required'
       });
     }
 
-    console.log(`Spinning up Docker container for ${githubUrl}...`);
-    
     const containerInfo = await spinUpContainer(githubUrl);
-
-    // Wait for a brief moment to ensure logs are written
-      try {
-        const logs = fs.readFileSync(filePath, 'utf8');
-        res.status(200).json({
-          message: 'Docker container started successfully!',
-          containerId: containerInfo.id,
-          port: containerInfo.port,
-          githubUrl,
-          logs
-        });
-      } catch (error) {
-        console.error('Failed to read logs:', error);
-        res.status(500).json({
-          error: 'Error reading logs',
-          message: error.message
-        });
-      }
+    
+    res.status(200).json({
+      message: 'Container deployed successfully!',
+      containerId: containerInfo.id,
+      url: `${containerInfo.subdomainId}.localhost:${port}`,
+      port: containerInfo.port
+    });
   } catch (error) {
-    console.error('Deployment failed:', error);
     res.status(500).json({
       error: 'Deployment failed',
       message: error.message
@@ -168,13 +165,17 @@ app.post('/deploy', async (req, res) => {
   }
 });
 
-// API route to list all running containers
+// List containers
 app.get('/containers', async (req, res) => {
   try {
     const containers = await docker.listContainers();
-    res.status(200).json(containers);
+    const mappings = Array.from(containerMappings.entries()).map(([subdomain, port]) => ({
+      subdomain,
+      port,
+      url: `${subdomain}.localhost:${port}`
+    }));
+    res.json(mappings);
   } catch (error) {
-    console.error('Failed to list containers:', error);
     res.status(500).json({
       error: 'Failed to list containers',
       message: error.message
@@ -182,14 +183,22 @@ app.get('/containers', async (req, res) => {
   }
 });
 
-// API route to stop a container
+// Stop container
 app.delete('/containers/:id', async (req, res) => {
   try {
     const container = docker.getContainer(req.params.id);
     await container.stop();
-    res.status(200).json({ message: 'Container stopped successfully' });
+    
+    // Clean up mapping
+    for (const [subdomain, port] of containerMappings.entries()) {
+      if (port === container.id) {
+        containerMappings.delete(subdomain);
+        break;
+      }
+    }
+    
+    res.json({ message: 'Container stopped successfully' });
   } catch (error) {
-    console.error('Failed to stop container:', error);
     res.status(500).json({
       error: 'Failed to stop container',
       message: error.message
@@ -197,7 +206,8 @@ app.delete('/containers/:id', async (req, res) => {
   }
 });
 
-// Start the Express server
+// Start server
 app.listen(port, () => {
-  console.log(`API is running on http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Access containers at <container-id>.localhost:${port}`);
 });
