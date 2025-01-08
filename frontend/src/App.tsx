@@ -1,71 +1,81 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Search, GitBranch, Loader2 } from 'lucide-react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { toast } from "sonner"
+import { useState, useEffect } from "react";
+import { Search, GitBranch, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
+import axios from "axios";
+import { CodeBlock } from "./components/ui/code-block";
+// Import the Code Block component from Acernity UI
 
-import {createClient} from "redis";
-const subscriber = createClient();
-subscriber.connect();
-
-//Just need to get the status of the deployment and the id as well as github url of the deployment to showcase the link to the user from the redis queue by getting the specific id that matches with their github_url 
 interface Repository {
-  id: number
-  name: string
-  description: string
-  html_url: string
-  stargazers_count: number
-  language: string
+  id: number;
+  name: string;
+  description: string;
+  html_url: string;
+  stargazers_count: number;
+  language: string;
 }
 
-export default function DeployPage() {
-  const [githubUrl, setGithubUrl] = useState("")
-  const [username, setUsername] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [repositories, setRepositories] = useState<Repository[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [deployingRepoId, setDeployingRepoId] = useState<number | null>(null)
+export default function App() {
+  const [githubUrl, setGithubUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [deployingRepoId, setDeployingRepoId] = useState<number | null>(null);
+  const [deployStatus, setDeployStatus] = useState<string>("");
+  const [deployLogs, setDeployLogs] = useState<string>(""); // Added deployLogs state
 
+  // Fetch the repositories from GitHub API
   const fetchRepositories = async (username: string) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const response = await fetch(`https://api.github.com/users/${username}/repos`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch repositories')
-      }
-      const data = await response.json()
-      setRepositories(data)
+      const response = await axios.get(`https://api.github.com/users/${username}/repos`);
+      const data = response.data;
+      setRepositories(data);
     } catch (error) {
-      toast.error("Failed to fetch repositories. Please try again.")
-      console.error("Error fetching repositories:", error)
+      toast.error("Failed to fetch repositories. Please try again.");
+      console.error("Error fetching repositories:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const filteredRepositories = repositories.filter(repo =>
+  const filteredRepositories = repositories.filter((repo) =>
     repo.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
+  // Function to handle deploy
   const handleDeploy = async (repoUrl: string, repoId?: number) => {
     if (repoId) {
-      setDeployingRepoId(repoId)
+      setDeployingRepoId(repoId);
     }
-    
+
     try {
-      // Here you would implement the actual deployment logic
-      await new Promise(resolve => setTimeout(resolve, 2000)) // Simulated deployment
-      toast.success("Deployment started successfully!")
+      // Send deploy request to the backend along with environment variables
+      const response = await axios.post(`http://localhost:9000/deploy`, {
+        github_url: repoUrl,
+      });
+
+      // Capture the logs from the response
+      if (response.data.logs) {
+        setDeployLogs(response.data.logs); // Set deploy logs here
+      }
+      setDeployStatus("Deployment started successfully!");
+
+      // Simulate deployment (You can replace this with your actual deployment logic)
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     } catch (error) {
-      toast.error("Failed to start deployment. Please try again.")
+      toast.error("Failed to start deployment. Please try again.");
+      setDeployStatus("Deployment failed.");
     } finally {
-      setDeployingRepoId(null)
+      setDeployingRepoId(null);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -75,7 +85,7 @@ export default function DeployPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-3xl">Deploy your GitHub Project</CardTitle>
             <CardDescription>
-              Enter the URL of your GitHub project to deploy it.
+              Enter the URL of your GitHub project and optionally set environment variables to deploy it.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -91,8 +101,9 @@ export default function DeployPage() {
                   onChange={(e) => setGithubUrl(e.target.value)}
                 />
               </div>
-              <Button 
-                className="w-full bg-black hover:bg-gray-800 text-white" 
+
+              <Button
+                className="w-full bg-black hover:bg-gray-800 text-white"
                 onClick={() => handleDeploy(githubUrl)}
                 disabled={!githubUrl}
               >
@@ -121,7 +132,7 @@ export default function DeployPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
-                <Button 
+                <Button
                   onClick={() => fetchRepositories(username)}
                   disabled={!username || isLoading}
                 >
@@ -131,11 +142,11 @@ export default function DeployPage() {
                       Loading
                     </>
                   ) : (
-                    'Fetch Repos'
+                    "Fetch Repos"
                   )}
                 </Button>
               </div>
-              
+
               {repositories.length > 0 && (
                 <div className="space-y-4">
                   <div className="relative">
@@ -147,7 +158,7 @@ export default function DeployPage() {
                       className="pl-8"
                     />
                   </div>
-                  
+
                   <ScrollArea className="h-[400px] rounded-md border">
                     <div className="p-4 space-y-4">
                       {filteredRepositories.map((repo) => (
@@ -165,9 +176,7 @@ export default function DeployPage() {
                                   </p>
                                 )}
                                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                  {repo.language && (
-                                    <span>{repo.language}</span>
-                                  )}
+                                  {repo.language && <span>{repo.language}</span>}
                                   <span>⭐ {repo.stargazers_count}</span>
                                 </div>
                               </div>
@@ -183,7 +192,7 @@ export default function DeployPage() {
                                     Deploying...
                                   </>
                                 ) : (
-                                  'Deploy'
+                                  "Deploy"
                                 )}
                               </Button>
                             </div>
@@ -197,7 +206,24 @@ export default function DeployPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Deploy Logs Section using Acernity CodeBlock Component */}
+        {deployLogs && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Deploy Logs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px] rounded-md border">
+                <div className="p-4 space-y-4">
+                  {/* Acernity CodeBlock Component for logs */}
+                  <CodeBlock language="bash" code={deployLogs} filename="build log" />
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
-  )
+  );
 }
