@@ -1,213 +1,105 @@
 import express from 'express';
-import Docker from 'dockerode';
 import cors from 'cors';
-import fs from 'fs';
-import path from 'path';
-import { createProxyMiddleware } from 'http-proxy-middleware';
-import uniqid from 'uniqid';
+import { WebSocketServer } from 'ws';
+import { spinUpContainer } from './utils/spinUpContainer';
+import { exchangeCodeForToken } from './utils/exchange-code-for-token';
+import { encryptToken } from './utils/encrypt-decrypt';
+import cookieParser from 'cookie-parser';
 
-// Initialize Docker and Express
-const docker = new Docker();
 const app = express();
-app.use(cors());
-const port = 3000;
-
-// Add JSON body parser
+app.use(cors({
+  origin: 'http://localhost:5173', // Adjust this to match your frontend URL
+  credentials: true
+}));
+app.use(cookieParser());
 app.use(express.json());
 
-// Store container mappings in memory
-const containerMappings = new Map();
+const port = 3000;
 
-// Subdomain handling middleware
-app.use(async (req, res, next) => {
-  const host = req.headers.host;
-  
-  // Skip if it's the main domain or API endpoints
-  if (host === `localhost:${port}` || req.path.startsWith('/deploy') || req.path.startsWith('/containers')) {
-    /**
-     * Middleware Function: Middleware functions are functions that have access to the request object (req), the response object (res), and the next middleware function in the application’s request-response cycle.
-     next() Function: The next function is a callback that you call to pass control to the next middleware function. If you don't call next(), the request will be left hanging.
-     */
-    return next();
-  }
-  
-  // Extract subdomain
-  const subdomain = host.split('.')[0];
-  const containerPort = containerMappings.get(subdomain);
-  
-  if (!containerPort) {
-    return res.status(404).json({ 
-      error: 'Container not found',
-      message: `No container found for ${subdomain}`
-    });
-  }
+const server = app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+});
 
-  // Create and use proxy middleware
-  const proxy = createProxyMiddleware({
-    target: `http://localhost:${containerPort}`,
-    changeOrigin: true,
-    ws: true,
-    onProxyReq: (proxyReq, req) => {
-      // Add custom headers
-      proxyReq.setHeader('X-Forwarded-Host', req.headers.host);
-      proxyReq.setHeader('X-Container-ID', subdomain);
-    },
-    onError: (err, req, res) => {
-      console.error('Proxy error:', err);
-      res.status(502).json({
-        error: 'Bad Gateway',
-        message: 'Unable to connect to container'
-      });
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws) => {
+  console.log('New WebSocket connection established');
+
+  ws.on('message', async (message) => {
+    try {
+      const { type, githubUrl, env, framework } = JSON.parse(message.toString());
+      console.log(`Received message => ${message}`);
+
+      if (type === "build-project") {
+        ws.send(JSON.stringify({ type: 'log', message: 'Starting deployment process...' }));
+        
+        try {
+          const result = await spinUpContainer({ githubUrl, env, framework });
+          ws.send(JSON.stringify({ 
+            type: 'deployment-success', 
+            message: 'Deployment completed successfully!',
+            data: result 
+          }));
+        } catch (error) {
+          ws.send(JSON.stringify({ 
+            type: 'deployment-error', 
+            message: 'Deployment failed: ' + error.message 
+          }));
+        }
+      } else {
+        ws.send(JSON.stringify({ type: 'error', message: 'Unsupported message type' }));
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+      ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
     }
   });
 
-  return proxy(req, res, next);
+  ws.send(JSON.stringify({ type: 'connected', message: 'Connected to WebSocket server' }));
 });
 
-async function spinUpContainer(githubUrl) {
+app.get('/auth/callback', async (req, res) => {
+  const { code } = req.query;
+  
+  if (!code) {
+    return res.status(400).send('Code is missing from the query params');
+  }
+
   try {
-    const imageName = 'node:20';
+    const accessToken = await exchangeCodeForToken(code);
+    const encryptedAccessToken = encryptToken(accessToken);
     
-    // Pull the image if it doesn't exist
+    res.cookie('_access_token', encryptedAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.redirect('http://localhost:5173');
+  } catch (error) {
+    console.error('Failed to get access token:', error);
+    res.status(500).send('Failed to get access token');
+  }
+});
+
+app.post("/webhook", async (req, res) => {
+  const payload = req.body;
+
+  if (payload.ref === "refs/heads/main") {
+    console.log(`Push event received from ${payload.repository.name}`);
+    const githubUrl = payload.repository.clone_url;
+    
     try {
-      await docker.getImage(imageName).inspect();
+      await spinUpContainer({ githubUrl, env: {}, framework: 'auto' });
+      res.status(200).send("Deployment successful!");
     } catch (error) {
-      if (error.statusCode === 404) {
-        console.log('Image not found locally, pulling...');
-        await new Promise((resolve, reject) => {
-          docker.pull(imageName, (err, stream) => {
-            if (err) return reject(err);
-            docker.modem.followProgress(stream, (err, output) => {
-              if (err) return reject(err);
-              resolve(output);
-            });
-          });
-        });
-      } else {
-        throw error;
-      }
+      console.error("Deployment error", error);
+      res.status(500).send("Deployment failed");
     }
-
-    // Create build script
-    const buildScript = `
-      apt-get update && apt-get install -y git &&
-      git clone ${githubUrl} /app &&
-      cd /app &&
-      npm install &&
-      npm run build
-      npm run dev
-    `;
-
-    // Generate unique subdomain ID
-    const subdomainId = uniqid();    
-    // Create container
-    const container = await docker.createContainer({
-      Image: imageName,
-      Cmd: ['/bin/bash', '-c', buildScript],
-      ExposedPorts: {
-        '8080/tcp': {}
-      },
-      HostConfig: {
-        PortBindings: {
-          '8080/tcp': [{ HostPort: '0' }]
-        },
-        AutoRemove: true
-      },
-      name: `node-app-${subdomainId}`
-    });
-
-    // Start container
-    await container.start();
-    
-    // Get container info and port
-    const containerInfo = await container.inspect();
-    const hostPort = containerInfo.NetworkSettings.Ports['8080/tcp'][0].HostPort;
-    
-    // Store mapping
-    containerMappings.set(subdomainId, hostPort);
-    
-    return {
-      id: container.id,
-      port: hostPort,
-      subdomainId
-    };
-  } catch (error) {
-    console.error('Error starting container:', error);
-    throw error;
-  }
-}
-
-// Deploy endpoint
-app.post('/deploy', async (req, res) => {
-  try {
-    const { github_url: githubUrl } = req.body;
-    
-    if (!githubUrl) {
-      return res.status(400).json({
-        error: 'Missing parameter',
-        message: 'github_url is required'
-      });
-    }
-
-    const containerInfo = await spinUpContainer(githubUrl);
-    
-    res.status(200).json({
-      message: 'Container deployed successfully!',
-      containerId: containerInfo.id,
-      url: `${containerInfo.subdomainId}.localhost:${port}`,
-      port: containerInfo.port
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Deployment failed',
-      message: error.message
-    });
+  } else {
+    res.status(200).send("Not a push to main branch");
   }
 });
 
-// List containers
-app.get('/containers', async (req, res) => {
-  try {
-    const containers = await docker.listContainers();
-    const mappings = Array.from(containerMappings.entries()).map(([subdomain, port]) => ({
-      subdomain,
-      port,
-      url: `${subdomain}.localhost:${port}`
-    }));
-    res.json(mappings);
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to list containers',
-      message: error.message
-    });
-  }
-});
-
-// Stop container
-app.delete('/containers/:id', async (req, res) => {
-  try {
-    const container = docker.getContainer(req.params.id);
-    await container.stop();
-    
-    // Clean up mapping
-    for (const [subdomain, port] of containerMappings.entries()) {
-      if (port === container.id) {
-        containerMappings.delete(subdomain);
-        break;
-      }
-    }
-    
-    res.json({ message: 'Container stopped successfully' });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to stop container',
-      message: error.message
-    });
-  }
-});
-
-// Start server
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-  console.log(`Access containers at <container-id>.localhost:${port}`);
-});
+export default app;

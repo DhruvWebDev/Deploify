@@ -11,14 +11,21 @@
   "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
     "dockerode": "^4.0.3",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "http-proxy-middleware": "^3.0.3",
     "redis": "^4.7.0",
     "simple-git": "^3.27.0",
     "tsc": "^2.0.4",
     "typescript": "^5.7.2",
-    "uniqid": "^5.4.0"
+    "uniqid": "^5.4.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2"
   }
 }
