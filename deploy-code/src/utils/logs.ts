@@ -52,8 +52,8 @@ export async function sendLogToKafka(logMessage: string, deploy_id: string) {
 
 
 export async function initialKafka(deployId: string): Promise<void> {
-    const kafka = createKafkaClient(deployId);
-    const consumer = kafka.consumer({ groupId: `build-logs-consumer-${deployId}` });
+    const kafka = createKafkaClient();
+    const consumer = kafka.consumer({ groupId: `build-logs-consumer` });
 
     await consumer.connect();
     await consumer.subscribe({ topic: 'build-logs', fromBeginning: true });
