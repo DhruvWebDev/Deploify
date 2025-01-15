@@ -8,6 +8,7 @@ export interface buildInterface {
     githubUrl:string,
      env: Record<string, string>,
      framework:SupportedFramework,
+     deploy_id:string
 
 }
 

@@ -20,7 +20,7 @@ app.get("/*", async (req, res) => {
 
   try {
     // Step 1: Fetch `app-path-manifest.json`
-    const manifestKey = `${id}/.next/server/app-path-manifest.json`;
+    const manifestKey = `${id}/.next/server/app-paths-manifest.json`;
     const manifestData = await fetchFileFromSupabase("file", manifestKey);
     const manifest = JSON.parse(await manifestData.text());
 

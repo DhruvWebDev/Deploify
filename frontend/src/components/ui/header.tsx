@@ -1,49 +1,76 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+"use client";
 
-export function Header() {
+import React, { useState } from "react";
+import { HoveredLink, Menu, MenuItem } from "@/components/ui/floating-navbar";
+import { cn } from "@/lib/utils";
+import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
+
+export function Navbar({ className }: { className?: string }) {
+  const [active, setActive] = useState<string | null>(null);
+  const { isSignedIn, user } = useUser();
+
   return (
-    <header className="fixed top-0 w-full z-50 bg-black/50 backdrop-blur-md border-b border-gray-800">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          <Link href="/" className="flex items-center space-x-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-8 h-8 text-white"
-            >
-              <polyline points="16 18 22 12 16 6"></polyline>
-              <polyline points="8 6 2 12 8 18"></polyline>
-            </svg>
-            <span className="text-2xl font-bold text-white">Deploify</span>
-          </Link>
-          <nav className="hidden md:flex space-x-8">
-            <Link href="#features" className="text-gray-300 hover:text-white transition-colors">
-              Features
-            </Link>
-            <Link href="#pricing" className="text-gray-300 hover:text-white transition-colors">
-              Pricing
-            </Link>
-            <Link href="#docs" className="text-gray-300 hover:text-white transition-colors">
-              Docs
-            </Link>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <Link href="/login" className="text-gray-300 hover:text-white transition-colors">
-              Log in
-            </Link>
-            <Button variant="outline" className="hidden sm:inline-flex">
-              Sign Up
-            </Button>
+    <div className={cn("fixed top-10 inset-x-0 max-w-2xl mx-auto z-50", className)}>
+      <Menu setActive={setActive} className="bg-black/50 backdrop-blur-md border border-white/[0.2] rounded-full">
+        <MenuItem setActive={setActive} active={active} item="Home">
+          <HoveredLink href="/" className="text-white hover:text-blue-400 transition-colors">Home</HoveredLink>
+        </MenuItem>
+        <MenuItem setActive={setActive} active={active} item="About">
+          <HoveredLink href="/about" className="text-white hover:text-blue-400 transition-colors">About Us</HoveredLink>
+        </MenuItem>
+        <MenuItem setActive={setActive} active={active} item="Pricing">
+          <HoveredLink href="/Pricing" className="text-white hover:text-blue-400 transition-colors">
+          <div className="flex flex-col space-y-4 text-sm">
+            <HoveredLink href="/hobby">Hobby</HoveredLink>
+            <HoveredLink href="/individual">Individual</HoveredLink>
+            <HoveredLink href="/team">Team</HoveredLink>
           </div>
-        </div>
-      </div>
-    </header>
-  )
+          </HoveredLink>
+          
+        </MenuItem>
+        
+        {isSignedIn && (
+          <MenuItem setActive={setActive} active={active} item="Dashboard">
+            <HoveredLink href="/dashboard" className="text-white hover:text-blue-400 transition-colors">Dashboard</HoveredLink>
+          </MenuItem>
+        )}
+        <MenuItem setActive={setActive} active={active} item="Login">
+          <div className="flex flex-col space-y-4 text-sm">
+            {!isSignedIn ? (
+              <SignInButton mode="modal">
+                <button className="text-white hover:text-blue-400 transition-colors">
+                  Sign In
+                </button>
+              </SignInButton>
+            ) : (
+              <>
+                <span className="text-gray-400">
+                  Hello, {user.firstName || user.username}
+                </span>
+                <SignOutButton>
+                  <button className="text-white hover:text-red-400 transition-colors">
+                    Sign Out
+                  </button>
+                </SignOutButton>
+              </>
+            )}
+          </div>
+        </MenuItem>
+        {/* <MenuItem setActive={setActive} active={active} item={<ModeToggle />}>
+        <ModeToggle />
+        </MenuItem> */}
+      </Menu>
+    </div>
+  );
 }
 
+export function NavbarDemo() {
+  return (
+    <div className="relative w-full flex items-center justify-center">
+      <Navbar className="top-2" />
+      <p className="text-white">
+        The Navbar will show on top of the page
+      </p>
+    </div>
+  );
+}

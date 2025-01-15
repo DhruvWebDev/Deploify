@@ -1,5 +1,5 @@
 export function getContentType(resolvedPath: string){
-    const contentType = resolvedPath.endsWith(".html") ? "text/html" :
+    const contentType = resolvedPath.endsWith(".html") || resolvedPath.endsWith(".htm") ? "text/html" :
     resolvedPath.endsWith(".css") ? "text/css" :
     resolvedPath.endsWith(".js") ? "application/javascript" :
     resolvedPath.endsWith(".svg") ? "image/svg+xml" :
@@ -7,8 +7,6 @@ export function getContentType(resolvedPath: string){
     resolvedPath.endsWith(".png") ? "image/png" :
     resolvedPath.endsWith(".gif") ? "image/gif" :
     "application/octet-stream";
-    
-
     return contentType;
 }
 
