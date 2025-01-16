@@ -4,12 +4,13 @@ import { getOutputFolder } from "./get-output-folder";
 import { getAllFiles } from "./getFilePath";
 import { uploadFile } from "./uploadeBucket";
 
-export const getBuildScript = ({ githubUrl, env, framework, subdomainId }: buildScriptInterface): string => {
+export const getBuildScript = async ({ githubUrl, env, framework, subdomainId }: buildScriptInterface): string => {
   const outputFolder = getOutputFolder(framework);
+  console.log(outputFolder);
+  
   // Generate the environment variables script
   const envScript = generateEnvFile(env); // Get the environment variable creation script
-  // Get the file paths based on the output folder
-  const files = getAllFiles(outputFolder);
+  console.log(envScript, "env");
   
   // Build the full build script
   const buildScript = `
@@ -18,33 +19,30 @@ export const getBuildScript = ({ githubUrl, env, framework, subdomainId }: build
     cd /app &&
     npm install &&
     
-    # Generate .env file
-    ${envScript} &&
+    # Copy the uploadeBucket.ts file into the container
+    COPY deploy-code/src/utils/uploadeBucket.ts /app/uploadeBucket.ts &&
     
-    # Build and start the app
+    # Generate .env file
+    echo "${envScript}" &&
+    
+    # Build the app
     npm run build &&
-    npm run dev -- --port=3000
-
-    # Upload the output folder to the Supabase storage bucket
-    (async () => {
-      const files = ${JSON.stringify(files)};  // Array of file paths
-      for (const file of files) {
-        // Call the uploadFiles function for each file
-        try {
-          await uploadFile(file, '${outputFolder}', '${subdomainId}');
-        } catch (error) {
-          console.error("Error uploading file:", error.message);
+    
+    # Run the upload script
+    node -e "
+      const { uploadFile } = require('./uploadeBucket');
+      const files = ${JSON.stringify(getAllFiles(outputFolder))};
+      (async () => {
+        for (const file of files) {
+          try {
+            await uploadFile(file, '${outputFolder}', '${subdomainId}');
+          } catch (error) {
+            console.error('Error uploading file:', error.message);
+          }
         }
-      }
-    })()
+      })();
+    "
   `;
 
   return buildScript;
 };
-
-
-/**
- * [
- *"c:\\Users\\mso15\\OneDrive\\Documents\\GitHub\\Deploify\\deploy-code\\src\\utils\\abc\\123.txt","c:\\Users\\mso15\\OneDrive\\Documents\\GitHub\\Deploify\\deploy-code\\src\\utils\\abc\\1234321\\abc.txt","c:\\Users\\mso15\\OneDrive\\Documents\\GitHub\\Deploify\\deploy-code\\src\\utils\\abc\\234\\file.txt","c:\\Users\\mso15\\OneDrive\\Documents\\GitHub\\Deploify\\deploy-code\\src\\utils\\abc\\asdf.t"
- * ]
- */

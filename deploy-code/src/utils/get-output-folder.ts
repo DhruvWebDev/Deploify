@@ -3,7 +3,7 @@ export const getOutputFolder = (framework: string) => {
     let outputFolder: string = '';
     switch (framework) {
         case 'react':
-            outputFolder = 'public';
+            outputFolder = 'dist';
             break;
         case 'angular':
             outputFolder = 'dist';
@@ -11,6 +11,8 @@ export const getOutputFolder = (framework: string) => {
         case 'vue':
             outputFolder = 'dist';
             break;
+        case 'nextjs':
+            outputFolder = '.next';
         default:
             break;
     }

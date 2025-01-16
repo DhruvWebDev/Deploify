@@ -3,13 +3,13 @@ import uniqid from 'uniqid';
 import { buildInterface, buildScriptInterface } from "../type/index";
 import { getBuildScript } from './build-script';
 import { formatLog, sendLogToKafka, initialKafka } from '../utils/logs'; // Import the logging utilities
+import { log } from 'console';
 
 const docker = new Docker();
 
 export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: buildInterface) {
     try {
         const imageName = 'node:20';
-
         // Pull the image if it doesn't exist
         try {
             await docker.getImage(imageName).inspect();
@@ -32,21 +32,25 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
 
         const subdomainId = uniqid();
         const buildScript = getBuildScript({ githubUrl, env, framework, subdomainId } as buildScriptInterface);
+        console.log(buildScript)
 
         // Create container
         const container = await docker.createContainer({
             Image: imageName,
             Cmd: ['/bin/bash', '-c', buildScript],
             ExposedPorts: {
-                '3000/tcp': {},
+                '8080/tcp': {},
             },
             HostConfig: {
                 PortBindings: {
-                    '3000/tcp': [{ HostPort: '0' }],
+                    '8080/tcp': [{ HostPort: '0' }],
                 },
                 AutoRemove: true,
             },
-            name: `node-app-${subdomainId}`,
+            name: `node-app-${deploy_id}`,
+            Tty: true, // Keep the terminal open
+            AttachStdout: true,
+            AttachStderr: true
         });
 
         // Start container
@@ -61,11 +65,12 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
 
         // Stream logs to Kafka
         stream.on('data', async (chunk) => {
-            const logMessage = chunk.toString('utf-8');
-            console.log(formatLog(logMessage)); // Log locally
+            const logData = chunk.toString();
+            console.log("log", logData);
+            console.log(formatLog(logData)); // Log locally
             try {
                 // Send logs to Kafka, passing the deploy_id
-                await sendLogToKafka(logMessage, deploy_id);
+                await sendLogToKafka(logData, deploy_id);
             } catch (err) {
                 console.error(formatLog(`Error sending log to Kafka: ${err.message}`));
             }

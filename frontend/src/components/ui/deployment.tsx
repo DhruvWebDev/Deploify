@@ -127,13 +127,13 @@ export function Deployment({ isConnected }: DeploymentProps) {
       env,
       framework,
     });
-    // Delay sending the fetch-logs message
-    setTimeout(() => {
-      sendMessage({
-        type: "fetch-logs",
-        deployId: repoId, // Assuming repoId is the deployment ID
-      });
-    }, 1000); // 1-second delay
+    // // Delay sending the fetch-logs message
+    // setTimeout(() => {
+    //   sendMessage({
+    //     type: "fetch-logs",
+    //     deployId: repoId, // Assuming repoId is the deployment ID
+    //   });
+    // }, 10000); // 10-second delay
 
     toast({
       title: "Deployment Started",

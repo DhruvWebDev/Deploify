@@ -1,17 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
-import { spinUpContainer } from './utils/spinUpContainer';
 import { exchangeCodeForToken } from './utils/exchange-code-for-token';
 import { encryptToken } from './utils/encrypt-decrypt';
 import cookieParser from 'cookie-parser';
 import { clerkMiddleware, getAuth, requireAuth } from '@clerk/express';
 import * as z from "zod";
 import { createKafkaClient } from './lib/kafka/client';
-import uniqid from 'uniqid';
 import { generateSlug } from "random-word-slugs";
 import { PrismaClient } from "@prisma/client";
 import { createClient } from '@clickhouse/client';
+import { spinUpContainer } from './utils/spinUpContainer';
+import uniqid from "uniqid";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -23,7 +23,7 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json());
-app.use(clerkMiddleware());
+// app.use(clerkMiddleware());
 
 const port = 3000;
 const server = app.listen(port, () => {
@@ -32,50 +32,125 @@ const server = app.listen(port, () => {
 
 const wss = new WebSocketServer({ server });
 
-// WebSocket connection for logs
-wss.on('connection', (ws) => {
-  console.log('New WebSocket connection established');
-
-  ws.on('message', async (message) => {
+wss.on("connection", (ws) => {
+  console.log("New WebSocket connection established");
+  const deployId = uniqid();
+  ws.on("message", async (message) => {
     try {
-      const { type, deployment_id } = JSON.parse(message.toString());
+      const { type, githubUrl, env, framework } = JSON.parse(message.toString());
       console.log(`Received message => ${message}`);
 
-      if (type === "fetch-logs") {
-        // Fetch logs from ClickHouse for the given deployment ID
+      if (type === "build-project") {
+        ws.send(JSON.stringify({ type: "log", message: "Starting deployment process..." }));
+
+        // Handle deployment logic
+        const slug = generateSlug();
+        console.log(deployId);
+
+        // Save deployment record
+        const prismaData = await prisma.project.create({
+          data: {
+            id: deployId as string,
+            gitURL: githubUrl as string,
+            subDomain: slug as string,
+            user_id: "some_user_id112345676543", // Replace with actual user ID
+          },
+        });
+        console.log(prismaData);
+
+          await prisma.deployement.create({
+            data: {
+              id: prismaData.id,
+              projectId: prismaData.id,
+              status: "IN_PROGRESS",
+            },
+          });
+
+        console.log("done creating deployment insertion")
+
+        try {
+          console.log("building docker container")
+          // Start deployment
+          const result = await spinUpContainer({ githubUrl, env, framework, deploy_id: deployId });
+          console.log(result, "result");
+          await prisma.deployement.update({
+            where: { id: deployId }, // Use the correct deployId here
+            data: { status: "READY" },
+          });
+
+          ws.send(JSON.stringify({
+            type: "deployment-success",
+            message: "Deployment completed successfully!",
+            data: result,
+          }));
+        } catch (error) {
+          console.log(error)
+          await prisma.deployement.update({
+            where: { id: deployId }, // Use the correct deployId here
+            data: { status: "FAIL" },
+          });
+
+          ws.send(JSON.stringify({
+            type: "deployment-error",
+            message: "Deployment failed: " + error.message,
+          }));
+        }
+      } else if (type === "fetch-logs") {
+        // Fetch logs from ClickHouse
         try {
           const logs = await client.query({
-            query: `
-              SELECT event_id, deployment_id, log, timestamp 
-              FROM log_events 
-              WHERE deployment_id = {deployment_id:String}`,
-            query_params: { deployment_id },
-            format: 'JSONEachRow'
+            query: `SELECT event_id, deployment_id, log, timestamp FROM log_events WHERE deployment_id = {deployment_id:String}`,
+            query_params: { deployment_id: deployId },
+            format: "JSONEachRow",
           });
 
           const rawLogs = await logs.json();
-
-          // Send logs via WebSocket
           ws.send(JSON.stringify({
-            type: 'fetch-logs',
-            deployment_id,
-            logs: rawLogs
+            type: "logs",
+            message: "Fetched logs successfully",
+            logs: rawLogs,
           }));
         } catch (error) {
-          console.error('Error fetching logs:', error);
-          ws.send(JSON.stringify({ type: 'error', message: 'Failed to fetch logs' }));
+          ws.send(JSON.stringify({
+            type: "fetch-logs-error",
+            message: "Failed to fetch logs: " + error.message,
+          }));
         }
       } else {
-        ws.send(JSON.stringify({ type: 'error', message: 'Unsupported message type' }));
+        ws.send(JSON.stringify({ type: "error", message: "Unsupported message type" }));
       }
     } catch (error) {
-      console.error('Error processing message:', error);
-      ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+      console.error("Error processing message:", error);
+      ws.send(JSON.stringify({ type: "error", message: "Internal server error" }));
     }
   });
 
-  ws.send(JSON.stringify({ type: 'connected', message: 'Connected to WebSocket server' }));
+  ws.send(JSON.stringify({ type: "connected", message: "Connected to WebSocket server" }));
 });
+
+
+app.get('/auth/callback', async (req, res) => {
+  const { code } = req.query;
+  
+  if (!code) {
+    return res.status(400).send('Code is missing from the query params');
+  }
+
+  try {
+    const accessToken = await exchangeCodeForToken(code);
+    const encryptedAccessToken = encryptToken(accessToken);
+    
+    res.cookie('_access_token', encryptedAccessToken, {
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.redirect('http://localhost:5173');
+  } catch (error) {
+    console.error('Failed to get access token:', error);
+    res.status(500).send('Failed to get access token');
+  }
+});
+
 
 // Endpoint to get project ID by subdomain
 app.get('/get-project-id', async (req: any, res: any) => {
