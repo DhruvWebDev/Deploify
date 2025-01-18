@@ -30,112 +30,163 @@
     console.log(`Server running at http://localhost:${port}`);
   });
 
-  const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server });
 
-  wss.on("connection", (ws) => {
-    console.log("New WebSocket connection established");
-    const samppleObject = {
-      "id": 1,
-      "name": "John Doe",
-      "age": 30
-    }
-    ws.send(JSON.stringify(samppleObject))
-    const deployId = uniqid();
-    ws.on("message", async (message) => {
-      try {
-        const { type, githubUrl, env, framework } = JSON.parse(message.toString());
-        console.log(`Received message => ${message}`);
+wss.on("connection", (ws) => {
+  console.log("New WebSocket connection established");
+  
+  const sampleObject = {
+    id: 1,
+    name: "John Doe",
+    age: 30,
+  };
+  ws.send(JSON.stringify(sampleObject));
 
-        if (type === "build-project") {
-          ws.send(JSON.stringify({ type: "log", message: "Starting deployment process..." }));
+  const deployId = uniqid();
 
-          // Handle deployment logic
+
+wss.on("connection", (ws) => {
+  console.log("New WebSocket connection established");
+
+  const sampleObject = {
+    id: 1,
+    name: "John Doe",
+    age: 30,
+  };
+  ws.send(JSON.stringify(sampleObject));
+
+  ws.on("message", async (message) => {
+    try {
+      const parsedMessage = JSON.parse(message.toString());
+      const { type, githubUrl, env, framework, deployId } = parsedMessage;
+      console.log(`Received message => ${message}`);
+
+      // Validate payload
+      if (!type) {
+        ws.send(JSON.stringify({ type: "error", message: 'Missing "type" in payload' }));
+        return;
+      }
+
+      if (type === "build-project") {
+        if (!githubUrl || !env || !framework) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: 'Missing required fields: "githubUrl", "env", or "framework"',
+            })
+          );
+          return;
+        }
+
+        ws.send(JSON.stringify({ type: "log", message: "Starting deployment process..." }));
+
+        try {
           const slug = generateSlug();
-          console.log(deployId);
+          const newDeployId = uniqid();
+
+          console.log(newDeployId);
 
           // Save deployment record
           const prismaData = await prisma.project.create({
             data: {
-              id: deployId as string,
-              gitURL: githubUrl as string,
-              subDomain: slug as string,
+              id: newDeployId,
+              gitURL: githubUrl,
+              subDomain: slug,
               user_id: "some_user_id112345676543", // Replace with actual user ID
             },
           });
           console.log(prismaData);
 
-            await prisma.deployement.create({
-              data: {
-                id: prismaData.id,
-                projectId: prismaData.id,
-                status: "IN_PROGRESS",
-              },
-            });
+          await prisma.deployement.create({
+            data: {
+              id: prismaData.id,
+              projectId: prismaData.id,
+              status: "IN_PROGRESS",
+            },
+          });
 
-          console.log("done creating deployment insertion")
+          console.log("Done creating deployment insertion");
 
-          try {
-            console.log("building docker container")
-            // Start deployment
-            const result = await spinUpContainer({ githubUrl, env, framework, deploy_id: deployId });
-            console.log(result, "result");
-            await prisma.deployement.update({
-              where: { id: deployId }, // Use the correct deployId here
-              data: { status: "READY" },
-            });
+          console.log("Building Docker container");
+          const result = await spinUpContainer({
+            githubUrl,
+            env,
+            framework,
+            deploy_id: newDeployId,
+          });
+          console.log(result, "result");
 
-            ws.send(JSON.stringify({
+          await prisma.deployement.update({
+            where: { id: newDeployId },
+            data: { status: "READY" },
+          });
+
+          ws.send(
+            JSON.stringify({
               type: "deployment-success",
               message: "Deployment completed successfully!",
               data: result,
-            }));
-          } catch (error) {
-            console.log(error)
-            await prisma.deployement.update({
-              where: { id: deployId }, // Use the correct deployId here
-              data: { status: "FAIL" },
-            });
+            })
+          );
+        } catch (error) {
+          console.log(error);
 
-            ws.send(JSON.stringify({
+          await prisma.deployement.update({
+            where: { id: newDeployId },
+            data: { status: "FAIL" },
+          });
+
+          ws.send(
+            JSON.stringify({
               type: "deployment-error",
               message: "Deployment failed: " + error.message,
-            }));
-          }
-        } else if (type === "fetch-logs") {
-          // Fetch logs from ClickHouse
-          try {
-            const logs = await client.query({
-              query: `SELECT event_id, deployment_id, log, timestamp FROM log_events WHERE deployment_id = {deployment_id:String}`,
-              query_params: { deployment_id: deployId },
-              format: "JSONEachRow",
-            });
+            })
+          );
+        }
+      } else if (type === "fetch-logs") {
+        if (!deployId) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: 'Missing required field: "deployId"',
+            })
+          );
+          return;
+        }
 
-            const rawLogs = await logs.json();
-            ws.send(JSON.stringify({
+        try {
+          const logs = await client.query({
+            query: `SELECT event_id, deployment_id, log, timestamp FROM log_events WHERE deployment_id = {deployment_id:String}`,
+            query_params: { deployment_id: deployId },
+            format: "JSONEachRow",
+          });
+
+          const rawLogs = await logs.json();
+          ws.send(
+            JSON.stringify({
               type: "logs",
               message: "Fetched logs successfully",
               logs: rawLogs,
-            }));
-          } catch (error) {
-            ws.send(JSON.stringify({
+            })
+          );
+        } catch (error) {
+          ws.send(
+            JSON.stringify({
               type: "fetch-logs-error",
               message: "Failed to fetch logs: " + error.message,
-            }));
-          }
-        } else {
-          ws.send(JSON.stringify({ type: "error", message: "Unsupported message type" }));
+            })
+          );
         }
-      } catch (error) {
-        console.error("Error processing message:", error);
-        ws.send(JSON.stringify({ type: "error", message: "Internal server error" }));
+      } else {
+        ws.send(JSON.stringify({ type: "error", message: "Unsupported message type" }));
       }
-    });
-
-    // ws.send(JSON.stringify({ type: "connected", message: "Connected to WebSocket server" }));
+    } catch (error) {
+      console.error("Error processing message:", error);
+      ws.send(JSON.stringify({ type: "error", message: "Invalid JSON payload or internal server error" }));
+    }
   });
-
-
-  app.get('/auth/callback', async (req, res) => {
+});
+ app.get('/auth/callback', async (req, res) => {
     const { code } = req.query;
     
     if (!code) {
