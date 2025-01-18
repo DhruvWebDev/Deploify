@@ -1,7 +1,7 @@
 export interface uploadFileInterface {
     fileName: string,
     localFilePath: string, 
-    generatedId:string
+    subdomainId:string
 } 
 
 export interface buildInterface {

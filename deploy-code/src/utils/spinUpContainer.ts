@@ -31,7 +31,7 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
         }
 
         const subdomainId = uniqid();
-        const buildScript = getBuildScript({ githubUrl, env, framework, subdomainId } as buildScriptInterface);
+        const buildScript = await getBuildScript({ githubUrl, env, framework, subdomainId } as buildScriptInterface);
         console.log(buildScript)
 
         // Create container
@@ -39,11 +39,11 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
             Image: imageName,
             Cmd: ['/bin/bash', '-c', buildScript],
             ExposedPorts: {
-                '8080/tcp': {},
+                '5173/tcp': {},
             },
             HostConfig: {
                 PortBindings: {
-                    '8080/tcp': [{ HostPort: '0' }],
+                    '5173/tcp': [{ HostPort: '9090' }],
                 },
                 AutoRemove: true,
             },
@@ -58,14 +58,14 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
 
         // Get container info and port
         const containerInfo = await container.inspect();
-        const hostPort = containerInfo.NetworkSettings.Ports['3000/tcp'][0].HostPort;
+        // const hostPort = containerInfo.NetworkSettings.Ports['3000/tcp'][0].HostPort;
 
         // Attach to container logs
         const stream = await container.attach({ stream: true, stdout: true, stderr: true });
 
         // Stream logs to Kafka
         stream.on('data', async (chunk) => {
-            const logData = chunk.toString();
+            const logData = chunk.toString('utf8');
             console.log("log", logData);
             console.log(formatLog(logData)); // Log locally
             try {
@@ -88,7 +88,7 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
 
         return {
             id: container.id,
-            port: hostPort,
+            port: 9000,
             subdomainId,
         };
     } catch (error) {

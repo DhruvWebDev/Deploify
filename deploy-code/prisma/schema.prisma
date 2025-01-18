@@ -13,15 +13,14 @@ enum DeployementStatus {
   READY
   FAIL
 }
-
 model Project {
-  id              String            @id @default(uuid())
+  id              String            @id // Removed @default(uuid())
   gitURL          String            @map("git_url")
   user_id         String            
   subDomain       String            @map("subdomain")
   customDomain    String?           @map("custom_domain")
   Deployement     Deployement[]
-  Analytics       Analytics[]       // Add this line to create the relation
+  Analytics       Analytics[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }

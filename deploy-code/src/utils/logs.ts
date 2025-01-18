@@ -87,7 +87,7 @@ export async function initialKafka(deployId: string): Promise<void> {
     console.log("Subscribed to topic: build-logs");
 
     await consumer.run({
-      eachBatch: async ({ batch, resolveOffset, commitOffsetsIfNecessary, heartbeat }) => {
+      eachBatch: async ({ batch, resolveOffset, commitOffsetsIfNecessary, heartbeat }:any) => {
         console.log(`Received ${batch.messages.length} messages in batch`);
 
         for (const message of batch.messages) {
@@ -101,7 +101,7 @@ export async function initialKafka(deployId: string): Promise<void> {
 
             const { query_id } = await resolvedClient.insert({
               table: "log_events",
-              values: [{ event_id: uniqid(), deployment_id: deploy_id, log }],
+              values: [{ event_id:` deploy_id-${uniqid()}`, deployment_id: deploy_id, log }],
               format: "JSONEachRow",
             });
             console.log("Log inserted into Clickhouse with query_id:", query_id);
