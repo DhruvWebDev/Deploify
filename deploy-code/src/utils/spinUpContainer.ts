@@ -45,7 +45,6 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
                 PortBindings: {
                     '5173/tcp': [{ HostPort: '9090' }],
                 },
-                AutoRemove: true,
             },
             name: `node-app-${deploy_id}`,
             Tty: true, // Keep the terminal open
