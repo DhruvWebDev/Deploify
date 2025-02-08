@@ -18,16 +18,16 @@ COPY . .
 COPY prisma ./prisma
 
 # Set environment variables for the database, Kafka, and Clickhouse
-ENV KAFKA_CA_CERTIFICATE="/etc/ssl/certs/kafka-ca-cert.pem"
-ENV DATABASE_URL="postgresql://postgres.prbhqalytjobgefpqicz:7e-nBUx%23mVs8z%24z@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?pgbouncer=true"
-ENV DIRECT_URL="postgresql://postgres.prbhqalytjobgefpqicz:7e-nBUx%23mVs8z%24z@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+ENV KAFKA_CA_CERTIFICATE=
+ENV DATABASE_URL=
+ENV DIRECT_URL=
 ENV GITHUB_URL_REGEX_EXPRESSION="^https:\/\/(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)(\.git)?$"
-ENV KAFKA_USERNAME="avnadmin"
-ENV KAFKA_PASSWORD="AVNS_qXx3shVq03fcu3Z9Nz_"
-ENV KAFKA_BROKER_URL="kafka-3cf431a7-dk2995962-73a6.h.aivencloud.com:23815"
-ENV CLICKHOUSE_HOST="https://avnadmin:AVNS_aXf9GyRM8jItdmrMJMw@clickhouse-26947dd7-dk2995962-73a6.h.aivencloud.com:23803"
-ENV CLICKHOUSE_USER="avnadmin"
-ENV CLICKHOUSE_PASSWORD="AVNS_aXf9GyRM8jItdmrMJMw"
+ENV KAFKA_USERNAME=
+ENV KAFKA_PASSWORD=
+ENV KAFKA_BROKER_URL=
+ENV CLICKHOUSE_HOST=
+ENV CLICKHOUSE_USER=
+ENV CLICKHOUSE_PASSWORD=
 
 # Generate Prisma client after the code is copied
 RUN npx prisma generate --schema=./prisma/schema.prisma
