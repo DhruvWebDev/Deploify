@@ -2,13 +2,12 @@ import express from "express";
 import { createClient } from '@supabase/supabase-js'; 
 import { supabase } from "./utils/supabase/client";
 import { getContentType } from "./utils/content-type";
-const PORT = 8080;
+const PORT = 3001;
 const app = express();
 
-
 // Route to handle all incoming requests
-app.get("/*", async (req, res) => {
-    const hostName = req.headers.host;
+app.get("/", async (req, res) => {
+    const hostName = "/";
     console.log("Host Name:", hostName);
 
     const id = hostName.split(".")[0]; // Extract the ID from the subdomain, e.g., 1234.localhost -> 1234

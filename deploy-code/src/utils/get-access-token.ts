@@ -1,7 +1,7 @@
 import axios from "axios"
 import dotenv from "dotenv"
 dotenv.config();
-async function getAccessToken(code) {
+async function getAccessToken(code:string):Promise<string> {
   const response = await axios.post(
     process.env.GITHUB_ACCESS_TOKEN_API as string,
     {

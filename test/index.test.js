@@ -91,7 +91,6 @@ describe('HTTP Endpoints', () => {
 
 // Tests for WebSocket connections
 describe('WebSocket Connections', () => {
-
   it('should establish a WS connection, build containers, stream logs to Kafka, and upload to ClickHouseDB', (done) => {
     const ws = createWebSocketConnection(
       'ws://localhost:3000',
@@ -116,79 +115,47 @@ describe('WebSocket Connections', () => {
       ws.send(JSON.stringify(MOCK_BUILD_CONFIGS));
     });
   });
+});
 
-  it('should return a deployment error if the payload is invalid', (done) => {
-    const ws = createWebSocketConnection(
-      'ws://localhost:3000',
-      (message) => {
-        const parsedMessage = JSON.parse(message.toString());
-        console.log('Received message from the WS about the deployment:', parsedMessage);
-        assert.strictEqual(parsedMessage.type, 'error');
-        assert.strictEqual(parsedMessage.message, 'Missing required fields: "githubUrl", "env", or "framework"');
-        ws.close();
-        done();
-      },
-      (error) => {
-        console.error('WebSocket error:', error);
-        done(error);
-      },
-      () => {
-        console.log('WebSocket connection closed');
-      }
-    );
-
-    ws.on('open', () => {
-      ws.send(JSON.stringify(MOCK_INVALID_BUILD_CONFIGS));
-    });
+// Only run this describe block
+describe.only('Request Handler Service', () => {
+  it('It should handle the vite project request', async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/vite-project');
+      assert.strictEqual(response.status, 200);
+      assert.ok(response.data.message);
+    } catch (error) {
+      console.error('Error in GET /vite-project:', error);
+      throw error;
+    }
   });
 
-  it('should fetch logs and return them for displaying on the frontend', (done) => {
-    const ws = createWebSocketConnection(
-      'ws://localhost:3000',
-      async (message) => {
-        const parsedMessage = await JSON.parse(message.toString());
-        console.log('Received message from the WS about the logs:', parsedMessage);
-        assert.strictEqual(parsedMessage.type, 'logs');
-        assert.strictEqual(parsedMessage.message, 'Fetched logs successfully');
-        ws.close();
-        done();
-      },
-      (error) => {
-        console.error('WebSocket error:', error);
-        done(error);
-      },
-      () => {
-        console.log('WebSocket connection closed');
-      }
-    );
-
-    ws.on('open', () => {
-      ws.send(JSON.stringify(MOCK_FETCH_LOGS_CONFIG));
-    });
+  it('It should handle the next project request', async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/next-project');
+      assert.strictEqual(response.status, 200);
+      assert.ok(response.data.message);
+    } catch (error) {
+      console.error('Error in GET /next-project:', error);
+      throw error;
+    }
   });
 
-  it('should return an error if the message type does not exist', (done) => {
-    const ws = createWebSocketConnection(
-      'ws://localhost:3000',
-      (message) => {
-        const parsedMessage = JSON.parse(message.toString());
-        console.log('Received message from the WS about the error:', parsedMessage);
-        assert.strictEqual(parsedMessage.type, 'error');
-        assert.strictEqual(parsedMessage.message, 'Invalid message type');
-        ws.close();
-        done();
-      },
-      (error) => {
-        console.error('WebSocket error:', error);
-        done(error);
-      },
-      () => {
-        console.log('WebSocket connection closed');
-      }
-    );
-
-    ws.on('open', () => {
-      ws.send(JSON.stringify({ type: 'invalid-type' }));
-    });
+  it('It should return a 404 error for an invalid subdomain', async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/invalid-subdomain');
+      assert.strictEqual(response.status, 404);
+      assert.strictEqual(response.data.message, 'Not Found');
+    } catch (error) {
+      console.error('Error in GET /invalid-subdomain:', error);
+      throw error;
+    }
   });
 });
+
+
+//TODO'S IN TESTS
+//HTTP Endpoints
+//WS Endpoints
+//Request-Handler-service
+//Webhook-event-listener

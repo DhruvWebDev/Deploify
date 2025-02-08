@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import cookieParser from 'cookie-parser';
@@ -113,7 +113,7 @@ wss.on('connection', (ws) => {
           ws.send(
             JSON.stringify({
               type: 'deployment-error',
-              message: 'Deployment failed: ' + error.message,
+              message: 'Deployment failed: ' + error,
             })
           );
         }
@@ -149,7 +149,7 @@ wss.on('connection', (ws) => {
           ws.send(
             JSON.stringify({
               type: 'fetch-logs-error',
-              message: 'Failed to fetch logs: ' + error.message,
+              message: 'Failed to fetch logs: ' + error,
             })
           );
         }
@@ -163,64 +163,86 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Endpoint to get project ID by subdomain
-app.get('/get-project-id', async (req, res) => {
-  const { subDomain } = req.query;
+// // Endpoint to get project ID by subdomain
+// app.get('/get-project-id', async (req:Request, res:Response) => {
+//   const { subDomain } = req.query;
 
-  if (!subDomain) {
-    return res.status(400).json({ error: 'Subdomain is required' });
-  }
+//   if (!subDomain) {
+//     return res.status(400).json({ error: 'Subdomain is required' });
+//   }
 
-  try {
-    const project = await prisma.project.findFirst({
-      where: {
-        subDomain: subDomain,
-      },
-    });
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
+//   try {
+//     const project = await prisma.project.findFirst({
+//       where: {
+//         subDomain: subDomain as string,
+//       },
+//     });
+//     if (!project) {
+//       return res.status(404).json({ error: 'Project not found' });
+//     }
 
-    res.status(200).json({ projectId: project.id });
-  } catch (error) {
-    console.error('Error fetching project ID:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+//     res.status(200).json({ projectId: project.id });
+//   } catch (error) {
+//     console.error('Error fetching project ID:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 
-// Endpoint to store analytics data
-app.post('/analytics', async (req, res) => {
-  const { projectId, page } = req.body;
+// // Endpoint to store analytics data
+// app.post('/analytics', async (req, res) => {
+//   const { projectId, page } = req.body;
 
-  if (!projectId || !page) {
-    return res.status(400).json({ error: 'Project ID and page are required' });
-  }
+//   if (!projectId || !page) {
+//     return res.status(400).json({ error: 'Project ID and page are required' });
+//   }
 
-  try {
-    const analytics = await prisma.analytics.create({
-      data: {
-        projectId, // Foreign key reference to Project
-        page, // The page or event information
-      },
-    });
+//   try {
+//     const analytics = await prisma.analytics.create({
+//       data: {
+//         projectId, // Foreign key reference to Project
+//         page, // The page or event information
+//       },
+//     });
 
-    res.status(200).json({ message: 'Analytics data stored successfully', data: analytics });
-  } catch (error) {
-    console.error('Error storing analytics data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+//     res.status(200).json({ message: 'Analytics data stored successfully', data: analytics });
+//   } catch (error) {
+//     console.error('Error storing analytics data:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 
-// Endpoint to handle webhook events
-app.post('/webhook', async (req, res) => {
-  const payload = req.body;
+// // app.get('/logs/:id', async (req, res) => {
+// //   const { projectId, page } = req.body;
 
-  if (payload.ref === 'refs/heads/main') {
-    console.log(`Push event received from ${payload.ref}`);
-    res.status(200).send(payload);
-  } else {
-    res.status(200).send('Not a push to main branch');
-  }
-});
+// //   if (!projectId || !page) {
+// //     return res.status(400).json({ error: 'Project ID and page are required' });
+// //   }
+
+// //   try {
+// //     const analytics = await prisma.analytics.create({
+// //       data: {
+// //         projectId, // Foreign key reference to Project
+// //         page, // The page or event information
+// //       },
+// //     });
+
+// //     res.status(200).json({ message: 'Analytics data stored successfully', data: analytics });
+// //   } catch (error) {
+// //     console.error('Error storing analytics data:', error);
+// //     res.status(500).json({ error: 'Internal server error' });
+// //   }
+// // });
+
+// // Endpoint to handle webhook events
+// app.post('/webhook', async (req, res) => {
+//   const payload = req.body;
+
+//   if (payload.ref === 'refs/heads/main') {
+//     console.log(`Push event received from ${payload.ref}`);
+//     res.status(200).send(payload);
+//   } else {
+//     res.status(200).send('Not a push to main branch');
+//   }
+// });
 
 export default app;

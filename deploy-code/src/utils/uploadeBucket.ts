@@ -4,8 +4,6 @@ import path from 'path';
 import { getMimeType } from './getMimeTypes';
 import { supabase } from '../lib/supabase/supabase';
 import {uploadFileInterface} from "../type/index";
-
-
   export const uploadFile = async ({ fileName, localFilePath, subdomainId }: uploadFileInterface) => {
     try {
     // Read the file from the local filesystem

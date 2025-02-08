@@ -1,0 +1,42 @@
+# Start with the official Node.js image
+FROM node:18-alpine
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy package.json, package-lock.json, and tsconfig.json
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the entire project into the container
+COPY . .
+
+# Ensure that the prisma folder and schema.prisma file are copied correctly
+COPY prisma ./prisma
+
+# Set environment variables for the database, Kafka, and Clickhouse
+ENV KAFKA_CA_CERTIFICATE="/etc/ssl/certs/kafka-ca-cert.pem"
+ENV DATABASE_URL="postgresql://postgres.prbhqalytjobgefpqicz:7e-nBUx%23mVs8z%24z@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?pgbouncer=true"
+ENV DIRECT_URL="postgresql://postgres.prbhqalytjobgefpqicz:7e-nBUx%23mVs8z%24z@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+ENV GITHUB_URL_REGEX_EXPRESSION="^https:\/\/(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)(\.git)?$"
+ENV KAFKA_USERNAME="avnadmin"
+ENV KAFKA_PASSWORD="AVNS_qXx3shVq03fcu3Z9Nz_"
+ENV KAFKA_BROKER_URL="kafka-3cf431a7-dk2995962-73a6.h.aivencloud.com:23815"
+ENV CLICKHOUSE_HOST="https://avnadmin:AVNS_aXf9GyRM8jItdmrMJMw@clickhouse-26947dd7-dk2995962-73a6.h.aivencloud.com:23803"
+ENV CLICKHOUSE_USER="avnadmin"
+ENV CLICKHOUSE_PASSWORD="AVNS_aXf9GyRM8jItdmrMJMw"
+
+# Generate Prisma client after the code is copied
+RUN npx prisma generate --schema=./prisma/schema.prisma
+
+# Expose the port for your app
+EXPOSE 3000
+
+# Build the TypeScript project
+RUN npm run build
+
+# Start the application
+CMD ["npm", "run", "dev"]

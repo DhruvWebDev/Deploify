@@ -2,9 +2,11 @@
   "name": "deploy-code",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+    "scripts": {
+      "dev": "tsx src/deploy.ts",  
+      "build": "tsc",              
+      "start": "node dist/deploy.js" 
+     },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -15,6 +17,7 @@
     "@clickhouse/client": "^1.10.0",
     "@prisma/client": "^6.2.1",
     "@supabase/supabase-js": "^2.47.12",
+    "axios": "^1.7.9",
     "chalk": "^5.4.1",
     "colors": "^1.4.0",
     "cookie-parser": "^1.4.7",
@@ -30,7 +33,6 @@
     "random-word-slugs": "^0.1.7",
     "redis": "^4.7.0",
     "simple-git": "^3.27.0",
-    "tsc": "^2.0.4",
     "uniqid": "^5.4.0",
     "uuid": "^11.0.5",
     "ws": "^8.18.0",

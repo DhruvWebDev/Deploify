@@ -4,6 +4,8 @@ import { buildInterface, buildScriptInterface } from "../type/index";
 import { getBuildScript } from './build-script';
 import { formatLog, sendLogToKafka, initialKafka } from '../utils/logs'; // Import the logging utilities
 import { log } from 'console';
+import path from 'path';
+import fs from 'fs';
 
 const docker = new Docker();
 
@@ -46,6 +48,9 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
                     '5173/tcp': [{ HostPort: '9090' }],
                 },
             },
+            Env: [
+                `NODE_ENV=123`,
+            ],
             name: `node-app-${deploy_id}`,
             Tty: true, // Keep the terminal open
             AttachStdout: true,
@@ -54,7 +59,6 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
 
         // Start container
         await container.start();
-
         // Get container info and port
         const containerInfo = await container.inspect();
         // const hostPort = containerInfo.NetworkSettings.Ports['3000/tcp'][0].HostPort;
@@ -71,7 +75,7 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
                 // Send logs to Kafka, passing the deploy_id
                 await sendLogToKafka(logData, deploy_id);
             } catch (err) {
-                console.error(formatLog(`Error sending log to Kafka: ${err.message}`));
+                console.error(formatLog(`Error sending log to Kafka: ${err}`));
             }
         });
 
@@ -91,7 +95,7 @@ export async function spinUpContainer({ githubUrl, env, framework, deploy_id }: 
             subdomainId,
         };
     } catch (error) {
-        console.error(formatLog(`Error starting container: ${error.message}`));
+        console.error(formatLog(`Error starting container: ${error}`));
         throw error;
     }
 }
