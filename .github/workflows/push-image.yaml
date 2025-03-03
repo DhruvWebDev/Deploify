@@ -33,20 +33,23 @@ jobs:
       - name: Login to AWS ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
-      
-      - name: Authenticate docker client with aws 
-        run: aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 982081060540.dkr.ecr.eu-north-1.amazonaws.com
-        
+
+      - name: Set AWS ECR Registry
+        run: echo "AWS_ECR_REGISTRY=${{ steps.ecr-login.outputs.registry }}" >> $GITHUB_ENV
+
+      - name: Authenticate Docker Client with AWS 
+        run: aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin $AWS_ECR_REGISTRY
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
       - name: Build Services
         run: |
-            echo "Building all services with docker compose..."
-            docker compose build
-      - name: list images
-        run: |
-          docker images 
+          echo "Building all services with Docker Compose..."
+          docker compose build
+
+      - name: List Docker Images
+        run: docker images
 
       # Tag & Push to Docker Hub
       - name: Push to Docker Hub
@@ -59,11 +62,11 @@ jobs:
             docker push dhruvwebdev146/${service}:latest
           done
 
-      # Tag & Push to AWS ECR
-      - name: Push to AWS ECR 
+      # Tag & Push to AWS ECR (Ensure the repository is public if needed)
+      - name: Push to AWS ECR
         run: |        
           for service in deploify-deploy-code deploify-frontend deploify-webhook-event-handler deploify-request-handler; do
-            echo "Pushing ${service} to ECR at ${AWS_ECR_REGISTRY}..."
-            docker tag ${service}:latest ${AWS_ECR_REGISTRY}/${service}:latest
-            docker push ${AWS_ECR_REGISTRY}/${service}:latest
+            echo "Pushing ${service} to ECR at $AWS_ECR_REGISTRY..."
+            docker tag ${service}:latest $AWS_ECR_REGISTRY/${service}:latest
+            docker push $AWS_ECR_REGISTRY/${service}:latest
           done
