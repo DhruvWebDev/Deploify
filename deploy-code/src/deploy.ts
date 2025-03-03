@@ -1,5 +1,4 @@
 import express from 'express';
-import { Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { PrismaClient } from '@prisma/client';
@@ -27,7 +26,7 @@ const server = app.listen(port, () => {
 });
 
 // HTTP endpoint to build and deploy a project
-app.post('/api/projects/deploy', async (req:Request, res:Response) => {
+app.post('/api/projects/deploy', async (req:any, res:any) => {
   try {
     const { githubUrl, env, framework } = req.body;
 
@@ -121,7 +120,7 @@ app.post('/api/projects/deploy', async (req:Request, res:Response) => {
 });
 
 // HTTP endpoint to check deployment status
-app.get('/api/deployments/:deployId/status', async (req: Request, res: Response) => {
+app.get('/api/deployments/:deployId/status', async (req: any, res: any) => {
   try {
     const { deployId } = req.params;
 
@@ -157,7 +156,7 @@ app.get('/api/deployments/:deployId/status', async (req: Request, res: Response)
 });
 
 // HTTP endpoint to fetch logs
-app.get('/api/deployments/:deployId/logs', async (req: Request, res: Response) => {
+app.get('/api/deployments/:deployId/logs', async (req: any, res: any) => {
   try {
     const { deployId } = req.params;
 
@@ -200,7 +199,7 @@ app.get('/api/deployments/:deployId/logs', async (req: Request, res: Response) =
 });
 
 // Endpoint to get project ID by subdomain
-app.get('/api/projects', async (req: Request, res: Response) => {
+app.get('/api/projects', async (req: any, res: any) => {
   const { subDomain } = req.query;
 
   if (!subDomain) {
@@ -225,7 +224,7 @@ app.get('/api/projects', async (req: Request, res: Response) => {
 });
 
 // Endpoint to store analytics data
-app.post('/api/analytics', async (req: Request, res: Response) => {
+app.post('/api/analytics', async (req: any, res: any) => {
   const { projectId, page } = req.body;
 
   if (!projectId || !page) {
