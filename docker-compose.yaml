@@ -1,6 +1,6 @@
 services:
   # Deploy-Code Service
-  deploy-code:
+  backend:
     container_name: backend
     build:
       context: ./deploy-code
@@ -28,7 +28,7 @@ services:
       - app_network
 
   # Event Service
-  event:
+  webhook:
     container_name: webhook
     build:
       context: ./webhook-event-handler
