@@ -33,14 +33,7 @@ jobs:
       - name: Login to AWS ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
-
-      # Make sure repositories exist
-      - name: Create ECR repositories if they don't exist
-        run: |
-          for service in deploy-code frontend event request-handler; do
-            aws ecr describe-repositories --repository-names ${service} || aws ecr create-repository --repository-name ${service}
-          done
-
+        
       # Build Docker Images with tags
       - name: Build Services
         run: |
