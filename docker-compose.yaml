@@ -30,7 +30,7 @@ services:
       - app_network
 
   # Event Service
-  event:
+  webhook-event-handler:
     container_name: webhook
     build:
       context: ./webhook-event-handler

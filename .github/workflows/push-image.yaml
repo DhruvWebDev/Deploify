@@ -37,14 +37,14 @@ jobs:
       # Make sure repositories exist
       - name: Create ECR repositories if they don't exist
         run: |
-          for service in deploy-code frontend event request-handler; do
+          for service in deploy-code frontend webhook-event-handler request-handler; do
             aws ecr describe-repositories --repository-names ${service} || aws ecr create-repository --repository-name ${service}
           done
 
       # Build Docker Images with tags
       - name: Build Services
         run: |
-          for service in deploy-code frontend event request-handler; do
+          for service in deploy-code frontend webhook-event-handler request-handler; do
             echo "Building service: ${service}"
             docker build -t ${service}:${COMMIT_SHA} -t ${service}:latest -f ./${service}/Dockerfile ./${service}
           done
@@ -52,7 +52,7 @@ jobs:
       # Tag & Push to Docker Hub
       - name: Push to Docker Hub
         run: |
-          for service in deploy-code frontend event request-handler; do
+          for service in deploy-code frontend webhook-event-handler request-handler; do
             echo "Pushing ${service} to Docker Hub..."
             docker tag ${service}:latest dhruvwebdev146/${service}:${COMMIT_SHA}
             docker tag ${service}:latest dhruvwebdev146/${service}:latest
@@ -68,7 +68,7 @@ jobs:
             ECR_REGISTRY="${{ steps.ecr-login.outputs.registry }}"
           fi
           
-          for service in deploy-code frontend event request-handler; do
+          for service in deploy-code frontend webhook-event-handler request-handler; do
             echo "Pushing ${service} to ECR at ${ECR_REGISTRY}..."
             docker tag ${service}:latest ${ECR_REGISTRY}/deploify/${service}:${COMMIT_SHA}
             docker tag ${service}:latest ${ECR_REGISTRY}/deploify/${service}:latest
