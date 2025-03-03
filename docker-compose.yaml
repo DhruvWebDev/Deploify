@@ -33,7 +33,7 @@ services:
       context: ./webhook-event-handler
       dockerfile: dockerfile
     ports:
-      - "3002:3002" # Keep the webhook-handler-service on port 3002 (host and container)
+      - "3002:3000" # Keep the webhook-handler-service on port 3002 (host and container)
     volumes:
       - ./webhook-event-handler:/app
       - /app/node_modules
@@ -51,7 +51,7 @@ services:
     dockerfile: dockerfile
     volumes: -./request-handler-v2:/app -/app/node_modules
   ports:
-    - "3003:3003"
+    - "3003:3001"
   environment:
     - NODE_ENV=development
   networks:
