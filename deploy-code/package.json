@@ -2,10 +2,8 @@
   "name": "deploy-code",
   "version": "1.0.0",
   "main": "index.js",
-    "scripts": {
-      "build": "tsc",              
-      "start": "node dist/deploy.js" 
-     },
+  "scripts": {
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
