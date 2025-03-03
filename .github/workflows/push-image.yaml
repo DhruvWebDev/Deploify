@@ -59,7 +59,7 @@ jobs:
             docker tag ${service}:latest dhruvwebdev146/${service}:${COMMIT_SHA}
             docker tag ${service}:latest dhruvwebdev146/${service}:latest
             docker push dhruvwebdev146/${service}:${COMMIT_SHA}
-            docker push dhruvwebdev146/${service}:latest
+            docker push dhruvwebdev146/${service}:latest 
           done
 
       # Tag & Push to AWS ECR (Ensure the repository is public if needed)
