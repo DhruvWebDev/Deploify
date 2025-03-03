@@ -72,8 +72,8 @@ jobs:
           
           for service in deploify-deploy-code deploify-frontend deploify-webhook-event-handler deploify-request-handler; do
             echo "Pushing ${service} to ECR at ${ECR_REGISTRY}..."
-            docker tag ${service}:latest ${ECR_REGISTRY}/deploify/${service}:${COMMIT_SHA}
-            docker tag ${service}:latest ${ECR_REGISTRY}/deploify/${service}:latest
+            docker tag ${service}:latest ${ECR_REGISTRY}/${service}:${COMMIT_SHA}
+            docker tag ${service}:latest ${ECR_REGISTRY}/${service}:latest
             docker push ${ECR_REGISTRY}/${service}:${COMMIT_SHA}
             docker push ${ECR_REGISTRY}/${service}:latest
           done
