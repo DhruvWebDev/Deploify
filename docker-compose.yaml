@@ -27,6 +27,7 @@ services:
     networks:
       - app_network
 
+  # Event Service
   event:
     container_name: webhook
     build:
@@ -43,26 +44,28 @@ services:
     networks:
       - app_network
 
-    #Request-Handler
-  Request:
-    container_name: 
+  # Request-Handler Service
+  request:
+    container_name: request-handler
     build:
-    context: ./request-handler-v2
-    dockerfile: dockerfile
-    volumes: -./request-handler-v2:/app -/app/node_modules
-  ports:
-    - "3003:3001"
-  environment:
-    - NODE_ENV=development
-  networks:
-    - app_network
+      context: ./request-handler-v2
+      dockerfile: dockerfile
+    ports:
+      - "3003:3001"
+    volumes:
+      - ./request-handler-v2:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - app_network
 
 # Docker Networks
 networks:
   app_network:
     driver: bridge
 
-# In your case, since both containers are connected to the same app_network, you can refer to the other container by its service name (which acts as the hostname within the network) and the port number it's exposing.
+# Docker Volumes
 volumes:
   redis_data:
-    local
+    driver: local
