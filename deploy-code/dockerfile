@@ -11,6 +11,9 @@ COPY tsconfig.json ./
 # Install dependencies
 RUN npm install
 
+# Install Typescript globally
+RUN npm install -g typescript
+
 # Copy the entire project into the container
 COPY . .
 
@@ -24,7 +27,7 @@ RUN npx prisma generate --schema=./prisma/schema.prisma
 EXPOSE 3000
 
 # Build the TypeScript project
-RUN npm run build
+RUN npm run start
 
 # Start the application
 CMD ["npm", "run", "dev"]
