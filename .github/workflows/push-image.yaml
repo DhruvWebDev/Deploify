@@ -33,13 +33,7 @@ jobs:
       - name: Login to AWS ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
-
-      # Make sure repositories exist
-      - name: Create ECR repositories if they don't exist
-        run: |
-          for service in deploify-deploy-code deploify-frontend deploify-webhook-event-handler deploify-request-handler; do
-            aws ecr describe-repositories --repository-names deploify/${service} || aws ecr create-repository --repository-name ${service}
-          done 
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
