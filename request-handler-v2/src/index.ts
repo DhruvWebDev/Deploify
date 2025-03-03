@@ -6,7 +6,7 @@ const PORT = 3001;
 const app = express();
 
 // Route to handle all incoming requests
-app.get("/", async (req, res) => {
+app.get("/", async (req:any, res:any) => {
     const hostName = "/";
     console.log("Host Name:", hostName);
 
