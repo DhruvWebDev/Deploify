@@ -1,8 +1,9 @@
+version: "3.8"
+
 services:
   # Deploy-Code Service
   deploy-code:
     container_name: backend
-    image: dhruvwebdev146/deploy-code
     build:
       context: ./deploy-code
       dockerfile: Dockerfile
@@ -17,7 +18,6 @@ services:
   # Frontend Service
   frontend:
     container_name: frontend
-    image: dhruvwebdev146/frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -32,7 +32,6 @@ services:
   # Event Service
   event:
     container_name: webhook
-    image: dhruvwebdev146/event
     build:
       context: ./webhook-event-handler
       dockerfile: Dockerfile
@@ -50,7 +49,6 @@ services:
   # Request-Handler Service
   request-handler:
     container_name: request-handler
-    image: dhruvwebdev146/request-handler
     build:
       context: ./request-handler-v2
       dockerfile: Dockerfile
@@ -60,7 +58,7 @@ services:
       - ./request-handler-v2:/app
       - /app/node_modules
     environment:
-      - NODE_ENV=development  
+      - NODE_ENV=development
     networks:
       - app_network
 
