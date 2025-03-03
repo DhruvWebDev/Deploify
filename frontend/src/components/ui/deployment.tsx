@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useWebSocket } from "@/context/web-socket";
+import axios from "axios";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,18 +39,43 @@ interface Deploy {
   framework: SupportedFramework;
 }
 
-interface DeploymentProps {
-  isConnected: boolean;
-}
+// Create an Axios instance with base configuration
+const api = axios.create({
+  baseURL: 'http://localhost:3000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-export function Deployment({ isConnected }: DeploymentProps) {
-  const { sendMessage, ws } = useWebSocket();
+export function Deployment() {
   const [githubUrl, setGithubUrl] = useState("");
   const [env, setEnv] = useState<Record<string, string>>({});
   const [framework, setFramework] = useState<SupportedFramework | "">("");
   const [deployingRepoId, setDeployingRepoId] = useState<number | null>(null);
   const [deployLogs, setDeployLogs] = useState("");
   const [repos, setRepos] = useState<Repository[]>([]);
+  const [isConnected, setIsConnected] = useState(true);
+  const [currentDeployId, setCurrentDeployId] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Check server connection
+    const checkConnection = async () => {
+      try {
+        await api.get('/health');  // Assuming there's a health check endpoint
+        setIsConnected(true);
+      } catch (error) {
+        setIsConnected(false);
+        console.error("Connection to server failed:", error);
+      }
+    };
+    
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     // Fetch user's repositories
     const fetchRepos = async () => {
@@ -71,45 +96,78 @@ export function Deployment({ isConnected }: DeploymentProps) {
     fetchRepos();
   }, []);
 
+  // Poll for deployment status
   useEffect(() => {
-    if (ws) {
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        switch (data.type) {
-          case "fetch-logs":
-            setDeployLogs((prev) => prev + "\n" + data.message);
-            break;
-          case "deployment-success":
-            setDeployLogs((prev) => prev + "\nDeployment successful!");
+    if (currentDeployId && isConnected) {
+      const fetchDeploymentStatus = async () => {
+        try {
+          const response = await api.get(`/deployments/${currentDeployId}/status`);
+          const { status } = response.data;
+          
+          // Fetch the latest logs
+          await fetchDeploymentLogs();
+          
+          // If deployment is complete (either successfully or failed)
+          if (status === 'READY') {
+            setDeployLogs(prev => prev + "\nDeployment successful!");
             toast({
               title: "Deployment Completed",
-              description: data.message,
+              description: "Your application has been deployed successfully!",
             });
-            break;
-          case "deployment-error":
-            setDeployLogs(
-              (prev) => prev + "\nDeployment failed: " + data.message
-            );
+            
+            // Stop polling
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              setPollingInterval(null);
+            }
+            setDeployingRepoId(null);
+          } else if (status === 'FAIL') {
+            setDeployLogs(prev => prev + "\nDeployment failed!");
             toast({
               title: "Deployment Failed",
-              description: data.message,
+              description: "There was an error deploying your application.",
               variant: "destructive",
             });
-            break;
-          case "error":
-            console.error(data.message);
-            toast({
-              title: "Error",
-              description: data.message,
-              variant: "destructive",
-            });
-            break;
+            
+            // Stop polling
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              setPollingInterval(null);
+            }
+            setDeployingRepoId(null);
+          }
+        } catch (error) {
+          console.error("Failed to fetch deployment status:", error);
         }
       };
+      
+      // Start polling
+      const interval = setInterval(fetchDeploymentStatus, 5000); // Poll every 5 seconds
+      setPollingInterval(interval);
+      
+      return () => {
+        if (interval) clearInterval(interval);
+      };
     }
-  }, [ws]);
+  }, [currentDeployId, isConnected]);
 
-  const handleDeploy = ({ repoUrl, repoId, env, framework }: Deploy) => {
+  // Function to fetch deployment logs
+  const fetchDeploymentLogs = async () => {
+    if (!currentDeployId) return;
+    
+    try {
+      const response = await api.get(`/deployments/${currentDeployId}/logs`);
+      if (response.data.success && response.data.logs) {
+        // Format and append logs
+        const formattedLogs = response.data.logs.map((log) => log.log).join('\n');
+        setDeployLogs(formattedLogs);
+      }
+    } catch (error) {
+      console.error("Failed to fetch logs:", error);
+    }
+  };
+
+  const handleDeploy = async ({ repoUrl, repoId, env, framework }: Deploy) => {
     if (!isConnected) {
       toast({
         title: "Connection Error",
@@ -118,27 +176,42 @@ export function Deployment({ isConnected }: DeploymentProps) {
       });
       return;
     }
+    
     setDeployingRepoId(repoId || null);
     setDeployLogs("Starting deployment...\n");
 
-    sendMessage({
-      type: "build-project",
-      githubUrl: repoUrl,
-      env,
-      framework,
-    });
-    // // Delay sending the fetch-logs message
-    // setTimeout(() => {
-    //   sendMessage({
-    //     type: "fetch-logs",
-    //     deployId: repoId, // Assuming repoId is the deployment ID
-    //   });
-    // }, 10000); // 10-second delay
-
-    toast({
-      title: "Deployment Started",
-      description: `Deploying ${repoUrl}`,
-    });
+    try {
+      const response = await api.post('/projects/deploy', {
+        githubUrl: repoUrl,
+        env,
+        framework,
+      });
+      
+      if (response.data.success) {
+        // Store the deployment ID for status polling
+        setCurrentDeployId(response.data.deployId);
+        
+        toast({
+          title: "Deployment Started",
+          description: `Deploying ${repoUrl}`,
+        });
+      } else {
+        toast({
+          title: "Deployment Failed",
+          description: response.data.message || "Failed to start deployment",
+          variant: "destructive",
+        });
+        setDeployingRepoId(null);
+      }
+    } catch (error) {
+      console.error("Deployment request failed:", error);
+      toast({
+        title: "Error",
+        description: "Failed to start deployment. Please try again.",
+        variant: "destructive",
+      });
+      setDeployingRepoId(null);
+    }
   };
 
   return (
@@ -224,9 +297,16 @@ export function Deployment({ isConnected }: DeploymentProps) {
                     framework: (framework as SupportedFramework) || "next",
                   })
                 }
-                disabled={!githubUrl || !isConnected}
+                disabled={!githubUrl || !isConnected || !!deployingRepoId}
               >
-                Deploy
+                {deployingRepoId ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deploying...
+                  </>
+                ) : (
+                  "Deploy"
+                )}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 After deployment, you will receive a URL where your website is

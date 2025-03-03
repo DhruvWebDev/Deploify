@@ -17,18 +17,6 @@ COPY . .
 # Ensure that the prisma folder and schema.prisma file are copied correctly
 COPY prisma ./prisma
 
-# Set environment variables for the database, Kafka, and Clickhouse
-ENV KAFKA_CA_CERTIFICATE=
-ENV DATABASE_URL=
-ENV DIRECT_URL=
-ENV GITHUB_URL_REGEX_EXPRESSION="^https:\/\/(www\.)?github\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)(\.git)?$"
-ENV KAFKA_USERNAME=
-ENV KAFKA_PASSWORD=
-ENV KAFKA_BROKER_URL=
-ENV CLICKHOUSE_HOST=
-ENV CLICKHOUSE_USER=
-ENV CLICKHOUSE_PASSWORD=
-
 # Generate Prisma client after the code is copied
 RUN npx prisma generate --schema=./prisma/schema.prisma
 

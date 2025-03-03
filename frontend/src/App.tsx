@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react"
-import { useWebSocket } from "./context/web-socket"
 import { GitHubAuth } from "./components/ui/github-auth"
 import { Deployment } from "./components/ui/deployment"
 import { parse } from "cookie"
 
 function App() {
-  const { isConnected } = useWebSocket()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
@@ -32,7 +30,7 @@ function App() {
       {!isAuthenticated ? (
         <GitHubAuth />
       ) : (
-        <Deployment isConnected={isConnected} />
+        <Deployment />
       )}
     </div>
   )

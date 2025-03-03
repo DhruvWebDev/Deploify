@@ -1,7 +1,7 @@
 services:
   # Deploy-Code Service
   deploy-code:
-    container_name: deploy-code
+    container_name: backend
     build:
       context: ./deploy-code
       dockerfile: dockerfile
@@ -10,9 +10,6 @@ services:
     volumes:
       - ./deploy-code:/app
       - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - REQUEST_HANDLER_URL=http://localhost:3001
     networks:
       - app_network
 
@@ -27,13 +24,11 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    environment:
-      - NODE_ENV=http://deploy-code:3000
     networks:
       - app_network
 
   event:
-    container_name: webhook-handler-service
+    container_name: webhook
     build:
       context: ./webhook-event-handler
       dockerfile: dockerfile
@@ -47,23 +42,10 @@ services:
       - FRONTEND_URL=http://frontend:5173
     networks:
       - app_network
-    #Redis
-
-
-  redis:
-    container_name: redis
-    image: "redis:latest"  # Use the official Redis image
-    ports:
-      - "6379:6379"  # Expose port 6379 for Redis
-    networks:
-      - app_network
-    volumes:
-      - redis_data:/data  # Persistent Redis data storage
-
 
     #Request-Handler
   Request:
-    container_name: request-handler
+    container_name: 
     build:
     context: ./request-handler-v2
     dockerfile: dockerfile

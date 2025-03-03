@@ -2,16 +2,14 @@
   "name": "request-handler",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "dev": "node dist/index.js",
-    "build": "tsc -b"
-  },
+  "scripts": {},
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.47.12",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "http-proxy": "^1.18.1",
     "http-proxy-middleware": "^3.0.3",

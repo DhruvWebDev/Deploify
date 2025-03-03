@@ -9,14 +9,3 @@ export const generateEnvFile = (env: Record<string, string>): string => {
     return envScript;
   };
   
-//   const env = {
-//     DATABASE_URL: 'postgres://user:password@localhost:5432/mydb',
-//     API_KEY: 'your-api-key-here',
-//     NODE_ENV: 'production',
-//     PORT: '3000',
-//     SECRET_KEY: 'mysecretkey',
-//   };
-  
-//   const output = generateEnvFile(env)
-//   console.log(output);
-

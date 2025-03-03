@@ -9,10 +9,10 @@ export const getBuildScript = async ({
   subdomainId,
 }: buildScriptInterface) => {
   const outputFolder = getOutputFolder(framework);
-  
+
   // Generate the environment variables script
   const envScript = generateEnvFile(env);
-  
+
   // Escape special characters in the environment variables
   const escapedEnvScript = envScript.replace(/"/g, '\\"');
 

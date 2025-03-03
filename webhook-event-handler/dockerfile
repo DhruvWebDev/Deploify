@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as builder
+FROM node:18-alpine
 
 WORKDIR /app
 
@@ -14,8 +14,8 @@ RUN npm install
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN tsc
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+CMD ["node", "dist/index.js"]
