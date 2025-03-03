@@ -39,7 +39,7 @@ jobs:
           done
 
       # Tag & Push to AWS ECR
-      - name: Push to AWS ECR
+      - name: Push to AWS ECR 
         run: |
           for service in deploy-code frontend event request-handler; do
             docker tag $service ${{ secrets.AWS_ECR_REGISTRY }}/$service:${{ env.COMMIT_SHA }}
