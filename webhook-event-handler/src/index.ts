@@ -1,5 +1,4 @@
 import express from "express"
-import { Request, Response } from "express"
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -11,7 +10,7 @@ app.listen(PORT, () => {
   console.log("Server listening on port", PORT);
 });
 
-app.post("/", async (req: Request, res: Response) => {
+app.post("/", async (req, res) => {
   const payload = req.body;
   console.log(payload)
   if (payload.ref === "refs/heads/main") {
@@ -23,7 +22,7 @@ app.post("/", async (req: Request, res: Response) => {
 })
 
 // Build endpoint
-app.post("/build", async (req: Request, res: Response) => {
+app.post("/build",async (req, res) => {
   const buildConfig = req.body;
   
   if (!buildConfig.githubUrl) {
@@ -35,13 +34,13 @@ app.post("/build", async (req: Request, res: Response) => {
 });
 
 // Deployment status endpoint
-app.get("/deployment-status/:deployId", async (req: Request, res: Response) => {
+app.get("/deployment-status/:deployId", async (req, res) => {
   const { deployId } = req.params;
   res.status(200).json({ status: 'in_progress' });
 });
 
 // Logs endpoint
-app.get("/logs/:deployId", async (req: Request, res: Response) => {
+app.get("/logs/:deployId", async (req, res) => {
   const { deployId } = req.params;
   res.status(200).json({ logs: [] });
 });
