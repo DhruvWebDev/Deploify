@@ -1,0 +1,20 @@
+# Use the official Node.js image with Alpine for smaller size
+FROM node:18-alpine
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy package files (package.json and package-lock.json) for caching dependencies
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy all other source code into the container
+COPY . .
+
+# Expose the port Vite will use (typically 5173 for Vite by default)
+EXPOSE 5173
+
+# Run the Vite dev server
+CMD ["npm", "run", "dev"]

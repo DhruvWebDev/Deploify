@@ -1,0 +1,21 @@
+# Build stage
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install all dependencies (including devDependencies)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN tsc
+
+EXPOSE 3000
+
+CMD ["node", "dist/index.js"]
