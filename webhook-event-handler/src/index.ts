@@ -10,7 +10,7 @@ app.listen(PORT, () => {
   console.log("Server listening on port", PORT);
 });
 
-app.post("/", async (req, res) => {
+app.post("/", async (req:any, res:any) => {
   const payload = req.body;
   console.log(payload)
   if (payload.ref === "refs/heads/main") {
@@ -22,7 +22,7 @@ app.post("/", async (req, res) => {
 })
 
 // Build endpoint
-app.post("/build",async (req, res) => {
+app.post("/build",async (req:any, res:any) => {
   const buildConfig = req.body;
   
   if (!buildConfig.githubUrl) {
@@ -34,13 +34,13 @@ app.post("/build",async (req, res) => {
 });
 
 // Deployment status endpoint
-app.get("/deployment-status/:deployId", async (req, res) => {
+app.get("/deployment-status/:deployId", async (req:any, res:any) => {
   const { deployId } = req.params;
   res.status(200).json({ status: 'in_progress' });
 });
 
 // Logs endpoint
-app.get("/logs/:deployId", async (req, res) => {
+app.get("/logs/:deployId", async (req:any, res:any) => {
   const { deployId } = req.params;
   res.status(200).json({ logs: [] });
 });
