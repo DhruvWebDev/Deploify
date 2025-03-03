@@ -62,11 +62,11 @@ jobs:
             docker push dhruvwebdev146/${service}:latest 
           done
 
-          - name: Push to AWS ECR
-          run: |        
-            for service in deploify-deploy-code deploify-frontend deploify-webhook-event-handler deploify-request-handler; do
-              echo "Pushing ${service} to ECR at ${{ env.AWS_ECR_REGISTRY }}..."
-              docker tag ${service}:latest ${{ env.AWS_ECR_REGISTRY }}/${service}:latest
-              docker push ${{ env.AWS_ECR_REGISTRY }}/${service}:latest
-            done
-        
+      # Tag & Push to AWS ECR (Ensure the repository is public if needed)
+      - name: Push to AWS ECR
+        run: |        
+          for service in deploify-deploy-code deploify-frontend deploify-webhook-event-handler deploify-request-handler; do
+            echo "Pushing ${service} to ECR at $AWS_ECR_REGISTRY..."
+            docker tag ${service}:latest $AWS_ECR_REGISTRY/${service}:latest
+            docker push $AWS_ECR_REGISTRY/${service}:latest
+          done
