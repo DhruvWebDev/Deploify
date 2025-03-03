@@ -58,12 +58,7 @@ jobs:
 
       # Tag & Push to AWS ECR
       - name: Push to AWS ECR 
-        run: |
-          ECR_REGISTRY="${{ secrets.AWS_ECR_REGISTRY }}"
-          if [ -z "$ECR_REGISTRY" ]; then
-            ECR_REGISTRY="${{ steps.ecr-login.outputs.registry }}"
-          fi
-          
+        run: |          
           for service in deploify-deploy-code deploify-frontend deploify-webhook-event-handler deploify-request-handler; do
             echo "Pushing ${service} to ECR at ${ECR_REGISTRY}..."
             docker tag ${service}:latest ${ECR_REGISTRY}/${service}:${COMMIT_SHA}
