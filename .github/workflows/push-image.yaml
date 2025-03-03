@@ -67,6 +67,6 @@ jobs:
         run: |        
           for service in deploify-deploy-code deploify-frontend deploify-webhook-event-handler deploify-request-handler; do
             echo "Pushing ${service} to ECR at $AWS_ECR_REGISTRY..."
-            docker tag ${service}:latest $AWS_ECR_REGISTRY/${service}:latest
-            docker push $AWS_ECR_REGISTRY/${service}:latest
+            docker tag ${service}:latest ${{AWS_ECR_REGISTRY}}/${service}:latest
+            docker push ${{AWS_ECR_REGISTRY}}/${service}:latest
           done
